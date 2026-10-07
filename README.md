@@ -1,6 +1,21 @@
 # 🗺 GMaps Scraper
 
-A cross-browser extension (Chrome / Edge / Firefox) that scrapes Google Maps search results and sends them to a local Node.js API with SQLite storage.
+A Chrome (Manifest V3) extension that scrapes business listings straight out of Google Maps search results and saves them into a local database you control.
+
+## What it does
+
+You search Google Maps for something (e.g. "avocat Kénitra"), click **Start Scraping** in the extension popup, and it auto-scrolls through the results panel, pulling out each listing's name, category, rating, review count, address, phone, website, and opening hours as they render. When the list is exhausted, the extension batches everything up and POSTs it to a small local API, which stores it in SQLite under a project/campaign name you choose.
+
+## What it's for
+
+Google Maps has no public API for browsing business listings by search query. This tool is for lead generation, local-market research, and building contact lists (lawyers in a city, restaurants in a district, etc.) without manually copying data out of the map UI. Results are organized per "project" so you can run many searches (different cities, niches, campaigns) and keep them separate, then query or export them as CSV.
+
+## How it works
+
+1. **`content_script.js`** runs on `google.com/maps/*` pages. It reads the DOM of the results panel, extracts each listing's fields using CSS selectors, and uses a scroll-and-observe loop (`MutationObserver`) to keep loading more results until Google Maps stops returning new ones.
+2. **`background.js`** (the extension's service worker) receives the scraped batches from the content script and `fetch()`-POSTs them to the backend API, using the URL/API key/project name you configured in the popup settings.
+3. **The Express API** (`backend/`) validates the payload, opens a SQLite transaction (`better-sqlite3`), and upserts the listings, tagged with the project name and session they belong to.
+4. From there you can query listings, filter by project, search, or download everything as a CSV straight from the API.
 
 ---
 
@@ -8,7 +23,7 @@ A cross-browser extension (Chrome / Edge / Firefox) that scrapes Google Maps sea
 
 ```
 gmaps-scraper/
-├── extension/          ← Browser extension (WebExtension MV3)
+├── extension/          ← Chrome extension (Manifest V3)
 │   ├── manifest.json
 │   ├── content_script.js   ← DOM scraper + auto-scroll engine
 │   ├── background.js       ← Service worker, API caller
@@ -44,15 +59,7 @@ npm start
 3. Click **Load unpacked**
 4. Select the `extension/` folder
 
-### 3. Extension — Firefox
-
-1. Go to `about:debugging#/runtime/this-firefox`
-2. Click **Load Temporary Add-on**
-3. Select `extension/manifest.json`
-
-> **Firefox note:** Firefox supports MV3 but has minor differences. If you encounter issues, rename `manifest.json` to `manifest_v3.json` and create a `manifest.json` that uses MV2 with `background.scripts` instead of `service_worker`.
-
-### 4. Configure the Extension
+### 3. Configure the Extension
 
 1. Click the extension icon
 2. Click ⚙ Settings
