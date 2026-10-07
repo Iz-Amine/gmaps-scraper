@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GMaps Scraper</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d0f14;
+      --surface:  #161b24;
+      --border:   #252d3a;
+      --accent:   #00e5a0;
+      --accent2:  #0072ff;
+      --warn:     #ff5f5f;
+      --text:     #e2e8f0;
+      --muted:    #6b7a96;
+      --mono:     'IBM Plex Mono', monospace;
+      --sans:     'IBM Plex Sans', sans-serif;
+    }
+
+    body {
+      width: 340px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 13px;
+      padding: 0;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 16px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo {
+      width: 28px; height: 28px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px;
+    }
+    .header-title { font-weight: 600; font-size: 14px; letter-spacing: .3px; }
+    .header-sub   { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+    .status-dot {
+      margin-left: auto;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--muted);
+      transition: background .3s;
+    }
+    .status-dot.active { background: var(--accent); box-shadow: 0 0 6px var(--accent); animation: pulse 1.2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── Sections ── */
+    .section { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+    .label {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    /* ── Inputs ── */
+    input {
+      width: 100%; padding: 7px 10px;
+      background: var(--border);
+      border: 1px solid transparent;
+      border-radius: 6px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 11px;
+      outline: none;
+      transition: border-color .2s;
+      margin-bottom: 6px;
+    }
+    input:focus { border-color: var(--accent2); }
+    input::placeholder { color: var(--muted); }
+
+    /* ── Buttons ── */
+    .btn-row { display: flex; gap: 8px; margin-top: 4px; }
+    .btn {
+      flex: 1; padding: 9px 0;
+      border: none; border-radius: 7px;
+      font-family: var(--sans); font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: transform .1s, opacity .2s;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-primary { background: var(--accent); color: #0d0f14; }
+    .btn-stop    { background: var(--warn); color: #fff; display: none; }
+    .btn-settings { flex: 0 0 36px; background: var(--surface); border: 1px solid var(--border); color: var(--muted); font-size: 16px; }
+
+    /* ── Progress ── */
+    .progress-wrap {
+      background: var(--border);
+      border-radius: 4px;
+      height: 4px;
+      overflow: hidden;
+      margin: 10px 0 6px;
+    }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
+      width: 0%;
+      transition: width .4s;
+      border-radius: 4px;
+    }
+    .progress-bar.indeterminate {
+      width: 40%;
+      animation: slide 1.2s infinite;
+    }
+    @keyframes slide {
+      0%  { margin-left: -40%; }
+      100%{ margin-left: 100%; }
+    }
+
+    /* ── Stats ── */
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .stat-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 6px;
+      text-align: center;
+    }
+    .stat-val  { font-family: var(--mono); font-size: 18px; font-weight: 600; color: var(--accent); }
+    .stat-key  { font-size: 9px; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: .8px; }
+
+    /* ── Log ── */
+    .log {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-top: 10px;
+      max-height: 80px;
+      overflow-y: auto;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .log .ok   { color: var(--accent); }
+    .log .err  { color: var(--warn); }
+    .log .info { color: var(--accent2); }
+
+    /* ── Settings panel ── */
+    #settings-panel { display: none; }
+    #settings-panel.open { display: block; }
+
+    /* ── Footer ── */
+    .footer {
+      padding: 8px 16px;
+      font-size: 9px;
+      color: var(--muted);
+      font-family: var(--mono);
+      text-align: center;
+    }
+    .not-maps-warning {
+      background: #2a1a1a;
+      border: 1px solid var(--warn);
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: var(--warn);
+      font-size: 11px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">🗺</div>
+    <div>
+      <div class="header-title">GMaps Scraper</div>
+      <div class="header-sub">v1.0.0 · cross-browser</div>
+    </div>
+    <div class="status-dot" id="statusDot"></div>
+  </div>
+
+  <!-- Not on Maps warning -->
+  <div class="section" id="notMapsSection" style="display:none">
+    <div class="not-maps-warning" id="notMapsWarning" style="display:block">
+      ⚠ Open Google Maps and run a search first.
+    </div>
+  </div>
+
+  <!-- Main section -->
+  <div class="section" id="mainSection">
+    <div class="label">Scrape Session</div>
+    <div class="not-maps-warning" id="notMapsWarning2"></div>
+    <input type="number" id="cfgMaxResults" placeholder="Max results (optional, e.g. 50)" min="1" />
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btnStart">▶ Start Scraping</button>
+      <button class="btn btn-stop"    id="btnStop">■ Stop</button>
+      <button class="btn btn-settings" id="btnSettings" title="Settings">⚙</button>
+    </div>
+
+    <div class="progress-wrap" id="progressWrap" style="display:none">
+      <div class="progress-bar indeterminate" id="progressBar"></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat-box">
+        <div class="stat-val" id="statFound">0</div>
+        <div class="stat-key">Found</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="statSent">—</div>
+        <div class="stat-key">Sent</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="statStatus">—</div>
+        <div class="stat-key">API</div>
+      </div>
+    </div>
+
+    <div class="log" id="logBox">
+      <span class="info">» Waiting to start...</span>
+    </div>
+  </div>
+
+  <!-- Settings section -->
+  <div class="section" id="settings-panel">
+    <div class="label">Configuration</div>
+    <input type="text" id="cfgApiUrl"      placeholder="API URL · http://localhost:3000/api/listings" />
+    <input type="text" id="cfgApiKey"      placeholder="API Key (optional)" />
+    <input type="text" id="cfgProjectName" placeholder="Project / Campaign name" />
+    <div class="btn-row" style="margin-top:4px">
+      <button class="btn btn-primary" id="btnSaveSettings" style="font-size:12px">Save Settings</button>
+    </div>
+  </div>
+
+  <div class="footer">GMaps Scraper · For development use only</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

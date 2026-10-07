@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GMaps Scraper · Dashboard</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:      #0d0f14;
+    --surface: #161b24;
+    --border:  #252d3a;
+    --accent:  #00e5a0;
+    --accent2: #0072ff;
+    --warn:    #ff5f5f;
+    --text:    #e2e8f0;
+    --muted:   #6b7a96;
+    --mono:    'Consolas', 'IBM Plex Mono', monospace;
+    --sans:    -apple-system, 'Segoe UI', Arial, sans-serif;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    padding: 20px;
+  }
+  h1 { font-size: 16px; font-weight: 600; margin-bottom: 2px; }
+  .sub { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-bottom: 16px; }
+
+  .toolbar {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px; margin-bottom: 14px;
+  }
+  select, input {
+    background: var(--border); border: 1px solid transparent; border-radius: 6px;
+    color: var(--text); padding: 6px 8px; font-size: 12px; font-family: var(--mono);
+    outline: none;
+  }
+  select:focus, input:focus { border-color: var(--accent2); }
+  input[type="text"] { min-width: 180px; }
+  .spacer { flex: 1; }
+
+  button {
+    border: none; border-radius: 6px; padding: 7px 12px;
+    font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--sans);
+  }
+  .btn-primary { background: var(--accent); color: #0d0f14; }
+  .btn-ghost   { background: var(--border); color: var(--text); }
+  .btn-danger  { background: transparent; color: var(--warn); border: 1px solid var(--warn); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+
+  .meta { font-size: 11px; color: var(--muted); margin-bottom: 8px; font-family: var(--mono); }
+
+  .stats { display: flex; gap: 10px; margin-bottom: 14px; }
+  .stat-box {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 16px; min-width: 120px;
+  }
+  .stat-val { font-family: var(--mono); font-size: 22px; font-weight: 600; color: var(--accent); }
+  .stat-key { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin-top: 2px; }
+
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  thead th {
+    text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .5px;
+    color: var(--muted); padding: 8px 10px; background: #10141b; border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 7px 10px; border-bottom: 1px solid var(--border); font-size: 12px;
+    max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  tbody tr:hover { background: rgba(255,255,255,.02); }
+  tbody tr:last-child td { border-bottom: none; }
+  a.link { color: var(--accent2); text-decoration: none; }
+  a.link:hover { text-decoration: underline; }
+  .status-open { color: var(--accent); }
+  .status-closed { color: var(--warn); }
+
+  .pager { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+  .empty { padding: 30px; text-align: center; color: var(--muted); }
+
+  .cat-panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px; margin-bottom: 14px;
+  }
+  .cat-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .cat-head .label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .cat-list { display: flex; flex-wrap: wrap; gap: 6px; max-height: 160px; overflow-y: auto; }
+  .cat-chip {
+    display: flex; align-items: center; gap: 5px;
+    background: var(--border); border-radius: 5px; padding: 4px 8px;
+    font-size: 11px; cursor: pointer; user-select: none;
+  }
+  .cat-chip input { margin: 0; cursor: pointer; }
+  .cat-chip .n { color: var(--muted); font-family: var(--mono); }
+  .cat-chip.unchecked { opacity: .45; }
+  td.sel, th.sel { width: 28px; padding-right: 0; }
+  td.act { width: 34px; text-align: center; }
+  .btn-row-del { background: transparent; color: var(--muted); padding: 2px 6px; font-size: 13px; }
+  .btn-row-del:hover { color: var(--warn); }
+  tr.checked { background: rgba(255,95,95,.07); }
+  .yes { color: var(--accent); }
+  .no  { color: var(--warn); }
+  .btn-tiny { padding: 4px 8px; font-size: 11px; font-weight: 500; }
+</style>
+</head>
+<body>
+
+  <h1>🗺 GMaps Scraper — Dashboard</h1>
+  <div class="sub" id="apiHealth">checking API…</div>
+
+  <div class="stats">
+    <div class="stat-box">
+      <div class="stat-val" id="statTotalAll">—</div>
+      <div class="stat-key">Total Scraped</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-val" id="statTotalFiltered">—</div>
+      <div class="stat-key">Matching Filters</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <select id="fProject"><option value="">All projects</option></select>
+    <select id="fSession"><option value="">All sessions</option></select>
+    <input type="text" id="fSearch" placeholder="Search name / address / category…" />
+    <select id="fHasPhone">
+      <option value="">Phone: any</option>
+      <option value="1">Phone: yes</option>
+      <option value="0">Phone: no</option>
+    </select>
+    <select id="fHasWebsite">
+      <option value="">Site: any</option>
+      <option value="1">Site: yes</option>
+      <option value="0">Site: no</option>
+    </select>
+    <select id="fLimit">
+      <option value="25">25 / page</option>
+      <option value="50" selected>50 / page</option>
+      <option value="100">100 / page</option>
+      <option value="250">250 / page</option>
+    </select>
+    <button class="btn-primary" id="btnFilter">Apply</button>
+    <div class="spacer"></div>
+    <button class="btn-danger" id="btnDeleteSel" disabled>🗑 Delete selected (0)</button>
+    <button class="btn-ghost" id="btnExport">⬇ Export CSV (filtered)</button>
+  </div>
+
+  <div class="cat-panel">
+    <div class="cat-head">
+      <span class="label">Categories to include</span>
+      <button class="btn-ghost btn-tiny" id="btnCatAll">Select all</button>
+      <button class="btn-ghost btn-tiny" id="btnCatNone">Select none</button>
+    </div>
+    <div class="cat-list" id="catList"><span class="empty" style="padding:0">Loading…</span></div>
+  </div>
+
+  <div class="meta" id="metaLine">Loading…</div>
+
+  <div id="tableWrap"></div>
+
+  <div class="pager">
+    <button class="btn-ghost" id="btnPrev">← Prev</button>
+    <span id="pageInfo" style="font-family:var(--mono); font-size:11px; color:var(--muted)"></span>
+    <button class="btn-ghost" id="btnNext">Next →</button>
+  </div>
+
+<script>
+  const state = { project: '', session_id: '', search: '', categories: null, hasPhone: '', hasWebsite: '', limit: 50, offset: 0, total: 0 };
+
+  const fProject = document.getElementById('fProject');
+  const fSession = document.getElementById('fSession');
+  const fSearch  = document.getElementById('fSearch');
+  const fHasPhone   = document.getElementById('fHasPhone');
+  const fHasWebsite = document.getElementById('fHasWebsite');
+  const fLimit   = document.getElementById('fLimit');
+  const metaLine = document.getElementById('metaLine');
+  const tableWrap = document.getElementById('tableWrap');
+  const pageInfo = document.getElementById('pageInfo');
+  const apiHealth = document.getElementById('apiHealth');
+  const statTotalAll = document.getElementById('statTotalAll');
+  const statTotalFiltered = document.getElementById('statTotalFiltered');
+  const catList  = document.getElementById('catList');
+  const btnCatAll  = document.getElementById('btnCatAll');
+  const btnCatNone = document.getElementById('btnCatNone');
+
+  const COLUMNS = [
+    ['name', 'Name'], ['category', 'Category'], ['rating', 'Rating'], ['review_count', 'Reviews'],
+    ['address', 'Address'], ['phone', 'Phone'], ['has_phone', 'Has Phone'], ['website', 'Website'], ['has_website', 'Has Site'], ['business_status', 'Status'],
+    ['project', 'Project'], ['scraped_at', 'Scraped At'],
+  ];
+
+  async function checkHealth() {
+    try {
+      const r = await fetch('/health');
+      const j = await r.json();
+      apiHealth.textContent = j.ok ? `API online · ${new Date(j.ts).toLocaleString()}` : 'API error';
+    } catch {
+      apiHealth.textContent = 'API unreachable — is the backend running?';
+    }
+  }
+
+  async function loadOverallTotal() {
+    const r = await fetch('/api/listings?limit=1');
+    const j = await r.json();
+    statTotalAll.textContent = j.ok ? j.total : '—';
+  }
+
+  async function loadSessions() {
+    const r = await fetch('/api/sessions');
+    const j = await r.json();
+    const sessions = j.sessions || [];
+
+    const projects = [...new Set(sessions.map(s => s.project))];
+    fProject.innerHTML = '<option value="">All projects</option>' +
+      projects.map(p => `<option value="${escapeAttr(p)}">${escapeHtml(p)}</option>`).join('');
+
+    renderSessionOptions(sessions);
+    fProject.addEventListener('change', () => {
+      renderSessionOptions(sessions);
+      loadCategories();
+    });
+  }
+
+  async function loadCategories() {
+    catList.innerHTML = '<span class="empty" style="padding:0">Loading…</span>';
+    const params = new URLSearchParams();
+    if (fProject.value) params.set('project', fProject.value);
+    const r = await fetch('/api/listings/categories?' + params.toString());
+    const j = await r.json();
+    const cats = j.categories || [];
+
+    if (!cats.length) {
+      catList.innerHTML = '<span class="empty" style="padding:0">No categories yet.</span>';
+      return;
+    }
+
+    catList.innerHTML = cats.map(c => `
+      <label class="cat-chip" data-cat="${escapeAttr(c.category)}">
+        <input type="checkbox" checked />
+        <span>${escapeHtml(c.category)}</span>
+        <span class="n">${c.count}</span>
+      </label>
+    `).join('');
+
+    catList.querySelectorAll('.cat-chip input').forEach(cb => {
+      cb.addEventListener('change', () => {
+        cb.closest('.cat-chip').classList.toggle('unchecked', !cb.checked);
+      });
+    });
+  }
+
+  function selectedCategories() {
+    const chips = [...catList.querySelectorAll('.cat-chip')];
+    if (chips.length === 0) return null; // not loaded yet — don't filter
+    const checked = chips.filter(chip => chip.querySelector('input').checked);
+    if (checked.length === chips.length) return null; // everything selected = no filter needed
+    return checked.map(chip => chip.dataset.cat);
+  }
+
+  btnCatAll.addEventListener('click', () => {
+    catList.querySelectorAll('.cat-chip').forEach(chip => {
+      chip.querySelector('input').checked = true;
+      chip.classList.remove('unchecked');
+    });
+  });
+  btnCatNone.addEventListener('click', () => {
+    catList.querySelectorAll('.cat-chip').forEach(chip => {
+      chip.querySelector('input').checked = false;
+      chip.classList.add('unchecked');
+    });
+  });
+
+  function renderSessionOptions(sessions) {
+    const filtered = fProject.value ? sessions.filter(s => s.project === fProject.value) : sessions;
+    fSession.innerHTML = '<option value="">All sessions</option>' +
+      filtered.map(s => `<option value="${s.id}">#${s.id} · ${escapeHtml(s.project)} · ${s.listing_count} · ${new Date(s.scraped_at).toLocaleString()}</option>`).join('');
+  }
+
+  function buildQuery(extra = {}) {
+    const params = new URLSearchParams();
+    if (state.project)    params.set('project', state.project);
+    if (state.session_id) params.set('session_id', state.session_id);
+    if (state.search)     params.set('search', state.search);
+    if (state.categories) params.set('categories', state.categories.join(','));
+    if (state.hasPhone)   params.set('has_phone', state.hasPhone);
+    if (state.hasWebsite) params.set('has_website', state.hasWebsite);
+    params.set('limit', state.limit);
+    params.set('offset', state.offset);
+    for (const [k, v] of Object.entries(extra)) params.set(k, v);
+    return params.toString();
+  }
+
+  async function loadListings() {
+    if (state.categories && state.categories.length === 0) {
+      state.total = 0;
+      statTotalFiltered.textContent = 0;
+      tableWrap.innerHTML = '<div class="empty">No categories selected — check at least one above.</div>';
+      metaLine.textContent = '0 matching listing(s)';
+      document.getElementById('btnPrev').disabled = true;
+      document.getElementById('btnNext').disabled = true;
+      return;
+    }
+    metaLine.textContent = 'Loading…';
+    const r = await fetch('/api/listings?' + buildQuery());
+    const j = await r.json();
+    if (!j.ok) {
+      tableWrap.innerHTML = `<div class="empty">Error: ${escapeHtml(j.error || 'unknown')}</div>`;
+      metaLine.textContent = '';
+      return;
+    }
+    state.total = j.total;
+    statTotalFiltered.textContent = j.total;
+    renderTable(j.rows);
+    const from = j.rows.length ? state.offset + 1 : 0;
+    const to = state.offset + j.rows.length;
+    metaLine.textContent = `${state.total} matching listing(s) · showing ${from}-${to}`;
+    pageInfo.textContent = `offset ${state.offset}`;
+    document.getElementById('btnPrev').disabled = state.offset <= 0;
+    document.getElementById('btnNext').disabled = to >= state.total;
+  }
+
+  function renderTable(rows) {
+    if (!rows.length) {
+      tableWrap.innerHTML = '<div class="empty">No listings match the current filters.</div>';
+      return;
+    }
+    const head = '<th class="sel"><input type="checkbox" id="chkAll" title="Select all on this page" /></th>' +
+      COLUMNS.map(([, label]) => `<th>${label}</th>`).join('') + '<th></th>';
+    const body = rows.map(r =>
+      `<tr data-id="${r.id}"><td class="sel"><input type="checkbox" class="chk" value="${r.id}" /></td>` +
+      COLUMNS.map(([key]) => `<td>${cell(key, r[key])}</td>`).join('') +
+      `<td class="act"><button class="btn-row-del" data-del="${r.id}" title="Delete this listing">🗑</button></td></tr>`
+    ).join('');
+    tableWrap.innerHTML = `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+    updateSelection();
+  }
+
+  // ── Selection + delete ──────────────────────────────────────────
+  const btnDeleteSel = document.getElementById('btnDeleteSel');
+
+  function selectedIds() {
+    return [...tableWrap.querySelectorAll('.chk:checked')].map(c => Number(c.value));
+  }
+
+  function updateSelection() {
+    const ids = selectedIds();
+    btnDeleteSel.disabled = ids.length === 0;
+    btnDeleteSel.textContent = `🗑 Delete selected (${ids.length})`;
+    tableWrap.querySelectorAll('tbody tr').forEach(tr =>
+      tr.classList.toggle('checked', tr.querySelector('.chk').checked));
+    const all = tableWrap.querySelectorAll('.chk');
+    const chkAll = document.getElementById('chkAll');
+    if (chkAll) chkAll.checked = all.length > 0 && ids.length === all.length;
+  }
+
+  async function deleteListings(ids) {
+    if (!ids.length) return;
+    if (!confirm(`Permanently delete ${ids.length} listing(s)? This cannot be undone.`)) return;
+    const r = await fetch('/api/listings', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+    const j = await r.json();
+    if (!j.ok) { alert('Delete failed: ' + (j.error || r.status)); return; }
+    // stay on a valid page if we just emptied the last one
+    if (state.offset > 0 && ids.length >= state.total - state.offset) {
+      state.offset = Math.max(0, state.offset - state.limit);
+    }
+    await Promise.all([loadOverallTotal(), loadCategories(), loadListings()]);
+  }
+
+  tableWrap.addEventListener('change', (e) => {
+    if (e.target.id === 'chkAll') {
+      tableWrap.querySelectorAll('.chk').forEach(c => { c.checked = e.target.checked; });
+    }
+    if (e.target.id === 'chkAll' || e.target.classList.contains('chk')) updateSelection();
+  });
+  tableWrap.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-del]');
+    if (btn) deleteListings([Number(btn.dataset.del)]);
+  });
+  btnDeleteSel.addEventListener('click', () => deleteListings(selectedIds()));
+
+  function cell(key, val) {
+    if (key === 'has_phone' || key === 'has_website') return val ? '<span class="yes">true</span>' : '<span class="no">false</span>';
+    if (val === null || val === undefined || val === '') return '<span style="color:var(--muted)">—</span>';
+    if (key === 'website') return `<a class="link" href="${escapeAttr(val)}" target="_blank" rel="noopener">${escapeHtml(val)}</a>`;
+    if (key === 'business_status') {
+      const cls = val === 'open' ? 'status-open' : (val.includes('closed') ? 'status-closed' : '');
+      return `<span class="${cls}">${escapeHtml(val)}</span>`;
+    }
+    if (key === 'scraped_at') return escapeHtml(new Date(val).toLocaleString());
+    return escapeHtml(String(val));
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  }
+  function escapeAttr(s) { return escapeHtml(s); }
+
+  document.getElementById('btnFilter').addEventListener('click', () => {
+    state.project    = fProject.value;
+    state.session_id = fSession.value;
+    state.search     = fSearch.value.trim();
+    state.categories = selectedCategories();
+    state.hasPhone   = fHasPhone.value;
+    state.hasWebsite = fHasWebsite.value;
+    state.limit      = Number(fLimit.value);
+    state.offset     = 0;
+    loadListings();
+  });
+
+  document.getElementById('btnPrev').addEventListener('click', () => {
+    state.offset = Math.max(0, state.offset - state.limit);
+    loadListings();
+  });
+  document.getElementById('btnNext').addEventListener('click', () => {
+    state.offset = state.offset + state.limit;
+    loadListings();
+  });
+
+  document.getElementById('btnExport').addEventListener('click', () => {
+    const q = buildQuery();
+    window.open('/api/listings/export?' + q, '_blank');
+  });
+
+  (async function init() {
+    await checkHealth();
+    await loadOverallTotal();
+    await loadSessions();
+    await loadCategories();
+    await loadListings();
+  })();
+</script>
+</body>
+</html>
